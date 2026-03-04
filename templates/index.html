@@ -36,7 +36,6 @@
         function toggleInputMode() {
             const manualInput = document.getElementById("manual_wind_input").checked;
             const icaoCodeField = document.getElementById("icao_code_field");
-            const boundingBoxField = document.getElementById("bounding_box_field");
             const windSpeedField = document.getElementById("wind_speed_field");
             const windHeadingField = document.getElementById("wind_heading_field");
             const seaLevelTempField = document.getElementById("sea_level_temp_field");
@@ -44,14 +43,12 @@
 
             if (manualInput) {
                 icaoCodeField.style.display = "none";
-                boundingBoxField.style.display = "none";
                 windSpeedField.style.display = "block";
                 windHeadingField.style.display = "block";
                 seaLevelTempField.style.display = "block";
                 seaLevelPressureField.style.display = "block";
             } else {
                 icaoCodeField.style.display = "block";
-                boundingBoxField.style.display = "block";
                 windSpeedField.style.display = "none";
                 windHeadingField.style.display = "none";
                 seaLevelTempField.style.display = "none";
@@ -60,7 +57,6 @@
         }
 
         function fillDefaults() {
-            document.getElementById('box').value = '38.70603814374191,-9.169521188831476,38.75571945218928,-9.12179932887582';
             document.getElementById('initial_latitude').value = '38.772044563205625';
             document.getElementById('initial_longitude').value = '-9.125695992070062';
             document.getElementById('speed').value = '10';
@@ -224,13 +220,6 @@
             {% endif %}
         </div>
 
-        <div id="bounding_box_field" class="form-group">
-            <label for="box">Bounding Box:</label>
-            <input type="text" name="box" id="box" value="{{ box }}" placeholder="Format: lat1,lon1,lat2,lon2" required class="{{ 'error' if errors.get('box') else '' }}">
-            {% if errors.get('box') %}
-                <span class="error">{{ errors.get('box') }}</span>
-            {% endif %}
-        </div>
 
         <div id="wind_speed_field" class="form-group" style="display: none;">
             <label for="wind_speed">Wind Speed (knots):</label>

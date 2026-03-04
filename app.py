@@ -81,7 +81,6 @@ def run_analysis():
     sea_level_temp = request.form.get('sea_level_temp') if manual_wind_input else None
     sea_level_pressure = request.form.get('sea_level_pressure') if manual_wind_input else None
     icao_code = request.form.get('icao_code') if not manual_wind_input else None
-    box = request.form.get('box') if not manual_wind_input else None
     initial_latitude = request.form.get('initial_latitude')
     initial_longitude = request.form.get('initial_longitude')
     initial_altitude = request.form.get('initial_altitude')
@@ -92,20 +91,7 @@ def run_analysis():
     if icao_code and len(icao_code) != 4:
         errors['icao_code'] = "ICAO Code must be exactly 4 letters."
     
-    # Validate bounding box
-    if box:
-        box_parts = box.split(',')
-        if len(box_parts) != 4:
-            errors['box'] = "Bounding box must have exactly four values: lat1, lon1, lat2, lon2."
-        else:
-            try:
-                lat1, lon1, lat2, lon2 = map(float, box_parts)
-                if not (-90 <= lat1 <= 90) or not (-90 <= lat2 <= 90):
-                    errors['box'] = "Latitude values must be between -90 and 90 degrees."
-                if not (-180 <= lon1 <= 180) or not (-180 <= lon2 <= 180):
-                    errors['box'] = "Longitude values must be between -180 and 180 degrees."
-            except ValueError:
-                errors['box'] = "Bounding box values must be valid numbers."
+   
     
     # Validate latitude and longitude
     if initial_latitude:
@@ -166,7 +152,7 @@ def run_analysis():
     if errors:
         return render_template('index.html', 
                                aircraft_type=aircraft_type, aircraft_name=aircraft_name,
-                               icao_code=icao_code, box=box, initial_latitude=initial_latitude,
+                               icao_code=icao_code, initial_latitude=initial_latitude,
                                initial_longitude=initial_longitude, heading=heading, speed=speed, initial_altitude = initial_altitude,
                                errors=errors, fixed_wing_list=fixed_wing_df['Name'].tolist(),
                                quadcopter_list=quadcopter_df['Name'].tolist())
@@ -174,27 +160,29 @@ def run_analysis():
     ### METAR AQUISITION
     if not manual_wind_input:
         try:
-            box_formatted = ",".join(map(str, list(map(float, box.split(','))))) if box else ""
-            METARres = requests.get(f"https://aviationweather.gov/api/data/metar?ids={icao_code}&format=geojson&bbox={box_formatted}")
-            METARres.raise_for_status()
-            METAR = METARres.json()
+            url = f"https://aviationweather.gov/api/data/metar?ids={icao_code}&format=json"
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            
+            METAR = response.json()  # Now it's a list
+            if not METAR:
+                print(f"No METAR data found for ICAO '{icao_code}'.")
+            else:
+                # It's a list, so take the first observation
+                obs = METAR[0]
+                TSL = obs.get("temp")          # Temperature in °C
+                PSL = obs.get("altim")         # Altimeter / pressure in hPa
+                windspd = obs.get("wspd")      # Wind speed in kt
+                windhdg = obs.get("wdir")      # Wind direction in degrees
 
-            TSL = METAR["features"][1]["properties"]["temp"]
-            PSL = METAR["features"][1]["properties"]["altim"]
-            windspd = METAR["features"][1]["properties"]["wspd"]
-            windhdg = METAR["features"][1]["properties"]["wdir"]
-        except Exception as e:
-            flash(f"An error occurred while fetching METAR data: {e}", category='error')
-            return redirect(url_for('index'))
-    else:
-        try:
-            windspd = float(wind_speed)
-            windhdg = float(wind_heading)
-            TSL = float(sea_level_temp) if sea_level_temp else 15  # Default sea level temperature in °C
-            PSL = float(sea_level_pressure) if sea_level_pressure else 1013.25  # Default sea level pressure in hPa
-        except ValueError:
-            flash("Wind speed, heading, sea-level temperature, and pressure must be valid numbers.", category='error')
-            return redirect(url_for('index'))
+                print("METAR data extracted:")
+                print(f"Temperature: {TSL} °C")
+                print(f"Pressure: {PSL} hPa")
+                print(f"Wind Speed: {windspd} kt")
+                print(f"Wind Heading: {windhdg}°")
+
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching METAR data: {e}")
 
 
     ### SPECIFIC AIRCRAFT DATA RETRIEVAL
